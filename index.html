@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3b4550">
+<title>7 Square Offer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="logo.jpg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root { --red: #e30613; --red-soft: #fdeced; --slate: #3b4550; --slate-soft: #eceef0; --taupe: #8a7d74; --green: #25d366;
+    --bg: #f3f2f1; --card: #fff; --text: #1f252b; --muted: #6b6560; --line: #e2dfdc; --ok: #188038; --ok-soft: #e6f4ea; --warn: #b26a00; --warn-soft: #fff4e5; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .hidden { display: none !important; }
+
+  .top { position: sticky; top: 0; z-index: 5; background: var(--slate); color: #fff; border-bottom: 4px solid var(--red);
+    padding: calc(10px + env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) 10px max(14px, env(safe-area-inset-left, 0px));
+    display: flex; align-items: center; gap: 12px; }
+  .top img { width: 44px; height: 44px; border-radius: 50%; background: #fff; flex-shrink: 0; }
+  .top .titles { flex: 1; min-width: 0; }
+  .top h1 { margin: 0; font-size: 16px; letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .top .status { font-size: 13px; opacity: .85; }
+  .iconbtn { background: rgba(255,255,255,.12); border: 0; color: #fff; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; flex-shrink: 0; }
+  .iconbtn svg { width: 20px; height: 20px; }
+
+  main { max-width: 540px; margin: 0 auto; padding: 14px max(14px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px)); display: grid; gap: 14px; }
+  .card { background: var(--card); border-radius: 16px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+  h2 { margin: 0 0 12px; font-size: 17px; }
+  label { display: block; font-size: 14px; color: var(--muted); margin: 12px 0 4px; }
+  label:first-child { margin-top: 0; }
+  input, select, textarea { width: 100%; padding: 13px 14px; font-size: 17px; border: 1px solid #cfcac6; border-radius: 12px; background: #fff; }
+  textarea { font-size: 15px; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--red); border-color: transparent; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 15px; font-size: 17px; font-weight: 700; border: 0; border-radius: 12px; cursor: pointer; text-decoration: none; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.red { background: var(--red); color: #fff; }
+  .btn.slate { background: var(--slate); color: #fff; }
+  .btn.light { background: var(--slate-soft); color: var(--slate); }
+  .btn.wa { background: var(--green); color: #fff; }
+  .btn.small { padding: 9px 12px; font-size: 14px; width: auto; border-radius: 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 0; }
+  .msg { font-size: 14px; font-weight: 600; margin: 10px 0 0; min-height: 1.2em; }
+  .msg.err { color: var(--red); } .msg.ok { color: var(--ok); }
+  .note { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+
+  .banner { background: var(--slate); color: #fff; border-radius: 14px; padding: 12px 14px; font-size: 14px; display: grid; gap: 4px; }
+  .banner b { color: #fff; }
+  .banner .prize-line { display: flex; justify-content: space-between; gap: 8px; }
+  .banner .prize-line span:first-child { opacity: .8; }
+  .closed { text-align: center; padding: 30px 18px; }
+  .closed b { display: block; font-size: 20px; margin-bottom: 6px; }
+
+  .warn { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600; margin-top: 10px; }
+
+  .follow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tile { border: 2px solid var(--line); border-radius: 14px; padding: 12px; text-align: center; display: grid; gap: 8px; align-content: start; }
+  .tile.done { border-color: var(--ok); background: var(--ok-soft); }
+  .tile .qr { background: #fff; border-radius: 8px; padding: 6px; aspect-ratio: 1; display: grid; place-items: center; }
+  .tile .qr svg { width: 100%; height: 100%; display: block; }
+  .tile .qr.empty { color: var(--muted); font-size: 12px; border: 1px dashed var(--line); }
+  .tile .name { font-weight: 700; font-size: 14px; word-break: break-all; }
+  .tile .btn { padding: 11px 8px; font-size: 14px; }
+  .tile.done .btn { background: var(--ok); color: #fff; }
+  .nextline { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; font-size: 14px; color: var(--muted); }
+  .nextline b { color: var(--text); font-size: 15px; }
+
+  .ticket { text-align: center; padding: 22px 18px; border-top: 6px solid var(--red); }
+  .ticket .lbl { font-size: 14px; color: var(--muted); }
+  .ticket .big { font-size: 84px; font-weight: 800; line-height: 1; color: var(--red); margin: 6px 0; font-variant-numeric: tabular-nums; }
+  .ticket .prize { font-size: 24px; font-weight: 800; margin: 6px 0 14px; }
+  .ticket .code { display: inline-block; font: 700 26px ui-monospace, Consolas, monospace; letter-spacing: 3px; color: var(--slate); background: var(--red-soft); border: 2px dashed var(--red); border-radius: 12px; padding: 8px 16px; }
+  .ticket .who { margin-top: 14px; font-size: 16px; }
+  .ticket .who small { display: block; color: var(--muted); font-size: 14px; }
+  .stack { display: grid; gap: 10px; }
+
+  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: var(--card); padding: 6px; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+  .tabs button { border: 0; background: none; padding: 10px 4px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .tabs button.on { background: var(--slate); color: #fff; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat { background: var(--card); border-radius: 14px; padding: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+  .stat b { display: block; font-size: 26px; color: var(--slate); font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .counter { display: flex; align-items: center; justify-content: center; gap: 22px; }
+  .counter .round { width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--slate); color: #fff; font-size: 28px; cursor: pointer; }
+  .counter .round:disabled { opacity: .3; }
+  .counter .mid { text-align: center; min-width: 140px; }
+  .counter .mid b { display: block; font-size: 46px; color: var(--red); line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .counter .mid small { display: block; color: var(--muted); font-size: 13px; }
+
+  .list { display: grid; gap: 8px; }
+  .item { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center; }
+  .item .no { font-weight: 800; color: var(--red); font-size: 18px; font-variant-numeric: tabular-nums; }
+  .item .main { min-width: 0; }
+  .item .main b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .main small { color: var(--muted); font-size: 13px; }
+  .item .acts { display: flex; gap: 6px; }
+  .pill { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--warn-soft); color: var(--warn); font-weight: 600; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .linkbtn { background: none; border: 0; color: var(--red); font-size: 13px; font-weight: 600; padding: 6px; cursor: pointer; }
+  .daydl { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+  .daydl:first-child { border-top: 0; }
+  .daydl small { color: var(--muted); display: block; font-size: 13px; }
+  .daydl.today b::after { content: ' · Today'; color: var(--red); font-size: 13px; }
+
+  .modal { position: fixed; inset: 0; z-index: 20; background: rgba(20,24,28,.55); display: grid; place-items: center; padding: 16px; }
+  .modal .card { width: 100%; max-width: 340px; }
+  .pin { text-align: center; letter-spacing: 10px; font-size: 26px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <img src="logo.jpg" alt="">
+  <div class="titles"><h1 id="shopName">7 SQUARE DIGITAL HUB</h1><div class="status" id="statusLine"></div></div>
+  <button class="iconbtn" id="lockBtn" aria-label="Admin">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+  </button>
+</header>
+
+<main>
+  <!-- Customer counter screen -->
+  <section id="screenCustomer" class="stack">
+    <div class="banner" id="prizeBanner"></div>
+    <div class="card closed hidden" id="closedCard"><b id="closedTitle"></b><span class="note" id="closedNote"></span></div>
+
+    <div id="openArea" class="stack">
+      <div class="card">
+        <h2>Customer details</h2>
+        <label for="cName">Customer name</label>
+        <input id="cName" autocomplete="off" autocapitalize="words" placeholder="Full name">
+        <label for="cPhone">Mobile number</label>
+        <input id="cPhone" type="tel" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="10-digit mobile number">
+        <div class="warn hidden" id="dupWarn"></div>
+      </div>
+
+      <div class="card">
+        <h2>Ask the customer to scan &amp; follow</h2>
+        <div class="follow">
+          <div class="tile" id="tileWa">
+            <div class="qr" id="qrWa"></div>
+            <div class="name">WhatsApp Channel</div>
+            <button class="btn light" id="tWa">Followed?</button>
+          </div>
+          <div class="tile" id="tileIg">
+            <div class="qr" id="qrIg"></div>
+            <div class="name" id="igName">Instagram</div>
+            <button class="btn light" id="tIg">Followed?</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="nextline"><span>Next token</span><b id="nextInfo"></b></div>
+        <button class="btn red" id="giveBtn" disabled>Give token</button>
+        <p class="msg err" id="formErr"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Token shown to the customer -->
+  <section id="screenToken" class="stack hidden">
+    <div class="card ticket">
+      <div class="lbl" id="tDay"></div>
+      <div class="big" id="tNo"></div>
+      <div class="prize" id="tPrize"></div>
+      <div class="code" id="tCode"></div>
+      <div class="who"><b id="tName"></b><small id="tPhone"></small></div>
+    </div>
+    <a class="btn wa" id="tSend" target="_blank" rel="noopener">Send token to customer on WhatsApp</a>
+    <button class="btn slate" id="tGiven">Prize handed over</button>
+    <button class="btn light" id="tNext">Next customer</button>
+  </section>
+
+  <!-- Admin -->
+  <section id="screenAdmin" class="stack hidden">
+    <nav class="tabs">
+      <button data-tab="today" class="on">Today</button>
+      <button data-tab="customers">Customers</button>
+      <button data-tab="download">Download</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+
+    <div data-panel="today" class="stack">
+      <div class="stats">
+        <div class="stat"><b id="sToday">0</b><span>Tokens today</span></div>
+        <div class="stat"><b id="sGiven">0</b><span>Prizes given today</span></div>
+        <div class="stat"><b id="sTotal">0</b><span>Customers, all days</span></div>
+      </div>
+      <div class="card">
+        <h2>Token counter</h2>
+        <div class="counter">
+          <button class="round" id="decBtn" aria-label="Previous number">−</button>
+          <div class="mid"><small>Next customer gets</small><b id="cNext">#1</b><small id="cPrize"></small></div>
+          <button class="round" id="incBtn" aria-label="Next number">+</button>
+        </div>
+        <p class="note" style="text-align:center">+ skips a number. − goes back to give a cancelled number again (numbers in use are skipped).</p>
+      </div>
+      <div class="warn hidden" id="backupWarn"></div>
+      <button class="btn light" id="exitBtn">Lock &amp; back to customer screen</button>
+    </div>
+
+    <div data-panel="customers" class="stack hidden">
+      <div class="card">
+        <div class="row">
+          <select id="dayPick" aria-label="Day"></select>
+          <input id="search" type="search" placeholder="Search name, mobile, token">
+        </div>
+        <p class="note" id="listNote"></p>
+        <div class="list" id="list"></div>
+      </div>
+    </div>
+
+    <div data-panel="download" class="stack hidden">
+      <div class="card">
+        <h2>Excel — token &amp; customer details</h2>
+        <button class="btn red" id="dlAll">Download all days (one Excel file)</button>
+        <p class="note">Has a summary sheet, an "All customers" sheet and one sheet per day.</p>
+        <div id="dayDownloads" style="margin-top:10px"></div>
+        <p class="msg" id="dlMsg"></p>
+      </div>
+      <div class="card">
+        <h2>Backup</h2>
+        <p class="note" style="margin-top:0">All data is stored only on this phone. Save a backup every evening and keep it on WhatsApp/Drive. A backup can be restored on this or another phone.</p>
+        <div class="row" style="margin-top:12px">
+          <button class="btn slate" id="backupBtn">Save backup</button>
+          <button class="btn light" id="restoreBtn">Restore backup</button>
+        </div>
+        <input type="file" id="restoreFile" accept=".json,application/json" class="hidden">
+        <p class="msg" id="bkMsg"></p>
+      </div>
+    </div>
+
+    <div data-panel="settings" class="stack hidden">
+      <form class="card" id="settingsForm">
+        <h2>Campaign</h2>
+        <div class="row">
+          <div><label for="startDate">Start date (Day 1)</label><input id="startDate" type="date" required></div>
+          <div><label for="days">Number of days</label><input id="days" type="number" min="1" max="60" required></div>
+        </div>
+        <p class="note" id="rangeNote"></p>
+        <label for="prizeRules">Prizes by token number, one per line (every day starts again from #1)</label>
+        <textarea id="prizeRules" rows="4"></textarea>
+        <label for="offerTitle">Offer for numbers not in the prize list</label>
+        <input id="offerTitle">
+        <label for="dailyLimit">Daily token limit (0 = no limit)</label>
+        <input id="dailyLimit" type="number" min="0">
+
+        <h2 style="margin-top:22px">Shop &amp; links</h2>
+        <label for="shopNameIn">Shop name</label>
+        <input id="shopNameIn">
+        <label for="channelUrl">WhatsApp Channel link</label>
+        <input id="channelUrl" placeholder="https://whatsapp.com/channel/...">
+        <label for="instagramId">Instagram ID</label>
+        <input id="instagramId" placeholder="e.g. 7square_digital" autocapitalize="none">
+        <label for="whatsappNumber">Shop WhatsApp number</label>
+        <input id="whatsappNumber" type="tel" inputmode="numeric">
+
+        <h2 style="margin-top:22px">Admin PIN</h2>
+        <label for="newPin">New PIN (4–8 digits, leave empty to keep)</label>
+        <input id="newPin" type="password" inputmode="numeric" pattern="\d{4,8}" autocomplete="new-password">
+
+        <button class="btn red" type="submit" style="margin-top:18px">Save settings</button>
+        <p class="msg" id="setMsg"></p>
+      </form>
+    </div>
+  </section>
+</main>
+
+<div class="modal hidden" id="pinModal">
+  <form class="card" id="pinForm">
+    <h2>Admin PIN</h2>
+    <input class="pin" id="pinIn" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+    <p class="msg err" id="pinMsg"></p>
+    <div class="row">
+      <button class="btn light" type="button" id="pinCancel">Cancel</button>
+      <button class="btn red" type="submit">Open</button>
+    </div>
+  </form>
+</div>
+
+<script src="vendor/qrcode.min.js"></script>
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
