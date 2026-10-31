@@ -1,5 +1,5 @@
 // Keeps the app working with no internet. Bump VERSION when the app files change.
-const VERSION = 'sq7-offer-v1';
+const VERSION = 'sq7-offer-v2';
 const FILES = ['./', 'index.html', 'app.js', 'core.js', 'vendor/qrcode.min.js', 'logo.jpg', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest'];
 
 self.addEventListener('install', e => {

@@ -40,6 +40,15 @@
   .btn.slate { background: var(--slate); color: #fff; }
   .btn.light { background: var(--slate-soft); color: var(--slate); }
   .btn.wa { background: var(--green); color: #fff; }
+  .btn.wa-line { background: #fff; color: #128c4a; border: 2px solid var(--green); }
+  .media { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .media:empty { display: none; }
+  .thumb { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--slate-soft); }
+  .thumb img, .thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb .tag { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; padding: 1px 6px; border-radius: 6px; }
+  .thumb .tag.big { background: var(--warn); }
+  .thumb .del { position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
+  .thumb .del.armed { background: var(--red); width: auto; padding: 0 8px; border-radius: 14px; font-size: 12px; }
   .btn.small { padding: 9px 12px; font-size: 14px; width: auto; border-radius: 10px; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; }
   .row > * { flex: 1; min-width: 0; }
@@ -169,7 +178,12 @@
       <div class="code" id="tCode"></div>
       <div class="who"><b id="tName"></b><small id="tPhone"></small></div>
     </div>
-    <a class="btn wa" id="tSend" target="_blank" rel="noopener">Send token to customer on WhatsApp</a>
+    <div class="card stack">
+      <h2 style="margin:0">Send on WhatsApp</h2>
+      <a class="btn wa" id="tSend" target="_blank" rel="noopener">1. Send token message</a>
+      <button class="btn wa-line" id="tMedia">2. Send photos &amp; videos</button>
+      <p class="note" id="mediaNote" style="margin:0"></p>
+    </div>
     <button class="btn slate" id="tGiven">Prize handed over</button>
     <button class="btn light" id="tNext">Next customer</button>
   </section>
@@ -265,6 +279,15 @@
         <button class="btn red" type="submit" style="margin-top:18px">Save settings</button>
         <p class="msg" id="setMsg"></p>
       </form>
+
+      <div class="card">
+        <h2>Photos &amp; videos to send</h2>
+        <p class="note" style="margin-top:0">Sent to every customer with their token on WhatsApp. Saved on this phone only. Use JPG/PNG photos and MP4 videos; keep each video under 16 MB so WhatsApp sends it quickly.</p>
+        <button class="btn slate" id="addMediaBtn" type="button" style="margin-top:12px">Add photos / videos</button>
+        <input type="file" id="mediaFile" accept="image/*,video/mp4,video/webm" multiple class="hidden">
+        <div class="media" id="mediaList"></div>
+        <p class="msg" id="mediaMsg"></p>
+      </div>
     </div>
   </section>
 </main>

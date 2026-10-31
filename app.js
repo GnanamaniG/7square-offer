@@ -116,6 +116,125 @@
     showToken(res.entry);
   });
 
+  // ---------- Photos & videos (kept in IndexedDB; too large for localStorage) ----------
+
+  const Media = (() => {
+    let opening, seq = 0;
+    const db = () => opening || (opening = new Promise((resolve, reject) => {
+      const req = indexedDB.open('sq7-media', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('files', { keyPath: 'id' });
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }));
+    async function run(mode, fn) {
+      const d = await db();
+      return new Promise((resolve, reject) => {
+        const t = d.transaction('files', mode);
+        const req = fn(t.objectStore('files'));
+        t.oncomplete = () => resolve(req.result);
+        t.onerror = t.onabort = () => reject(t.error || new Error('Phone storage is full'));
+      });
+    }
+    return {
+      list: () => run('readonly', s => s.getAll()).then(all => all.sort((a, b) => a.addedAt - b.addedAt)),
+      add: file => run('readwrite', s => s.put({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: file.name, type: file.type, size: file.size, blob: file, addedAt: Date.now() * 1000 + (seq++ % 1000), // keeps the order they were picked
+      })),
+      remove: id => run('readwrite', s => s.delete(id)),
+    };
+  })();
+
+  // Ready-made File objects, so tapping "Send photos & videos" can share instantly
+  // (the share sheet only opens straight from a tap, with no slow work in between)
+  let mediaFiles = [];
+  let shareText = '';
+
+  async function refreshMedia() {
+    try {
+      const items = await Media.list();
+      mediaFiles = items.map(m => new File([m.blob], m.name, { type: m.type }));
+      return items;
+    } catch (e) {
+      mediaFiles = [];
+      return [];
+    }
+  }
+
+  const canShareFiles = files => Boolean(navigator.canShare && files.length && navigator.canShare({ files }));
+
+  function renderMediaButton() {
+    const n = mediaFiles.length;
+    const photos = mediaFiles.filter(f => f.type.startsWith('image/')).length;
+    $('tMedia').textContent = `2. Send ${[photos && `${photos} photo${photos > 1 ? 's' : ''}`, n - photos && `${n - photos} video${n - photos > 1 ? 's' : ''}`].filter(Boolean).join(' & ')}`;
+    $('tMedia').classList.toggle('hidden', !n);
+    $('tMedia').disabled = !canShareFiles(mediaFiles);
+    $('mediaNote').textContent = !n ? ''
+      : $('tMedia').disabled ? 'This phone cannot send files from the app. Send the photos from the Gallery instead.'
+        : 'After step 1, come back and tap step 2. In WhatsApp, pick this customer — their chat is at the top of the list.';
+  }
+
+  $('tMedia').addEventListener('click', () => {
+    navigator.share({ files: mediaFiles, text: shareText }).catch(e => {
+      if (e.name !== 'AbortError') $('mediaNote').textContent = 'Could not open WhatsApp: ' + e.message;
+    });
+  });
+
+  function renderMediaList(items) {
+    const list = $('mediaList');
+    list.querySelectorAll('img, video').forEach(el => URL.revokeObjectURL(el.src));
+    list.innerHTML = '';
+    for (const m of items) {
+      const box = document.createElement('div');
+      box.className = 'thumb';
+      const view = document.createElement(m.type.startsWith('video/') ? 'video' : 'img');
+      view.src = URL.createObjectURL(m.blob);
+      if (view.tagName === 'VIDEO') { view.muted = true; view.preload = 'metadata'; }
+      const mb = m.size / 1048576;
+      const tooBig = m.type.startsWith('video/') && mb > 16;
+      box.append(view);
+      box.insertAdjacentHTML('beforeend', `<span class="tag${tooBig ? ' big' : ''}">${m.type.startsWith('video/') ? '▶ ' : ''}${mb.toFixed(1)} MB</span>
+        <button class="del" data-del="${m.id}" aria-label="Remove">✕</button>`);
+      list.append(box);
+    }
+    const total = items.reduce((n, m) => n + m.size, 0) / 1048576;
+    const msg = $('mediaMsg');
+    msg.className = 'msg';
+    msg.textContent = items.length ? `${items.length} file${items.length > 1 ? 's' : ''} · ${total.toFixed(1)} MB${total > 64 ? ' — large; WhatsApp may take time to send' : ''}` : 'No photos or videos yet.';
+  }
+
+  async function loadMediaSettings() {
+    renderMediaList(await refreshMedia());
+  }
+
+  $('addMediaBtn').addEventListener('click', () => $('mediaFile').click());
+  $('mediaFile').addEventListener('change', async () => {
+    const files = [...$('mediaFile').files];
+    $('mediaFile').value = '';
+    const rejected = [];
+    for (const f of files) {
+      if (!/^(image|video)\//.test(f.type) || (navigator.canShare && !navigator.canShare({ files: [f] }))) { rejected.push(f.name); continue; }
+      try { await Media.add(f); } catch (e) { rejected.push(`${f.name} (${e.message})`); }
+    }
+    await loadMediaSettings();
+    if (rejected.length) {
+      $('mediaMsg').className = 'msg err';
+      $('mediaMsg').textContent = `Not added: ${rejected.join(', ')}. Use JPG/PNG photos and MP4 videos.`;
+    }
+  });
+
+  $('mediaList').addEventListener('click', async e => {
+    const btn = e.target.closest('[data-del]');
+    if (!btn) return;
+    if (!btn.classList.contains('armed')) {
+      btn.classList.add('armed');
+      btn.textContent = 'Remove?';
+      setTimeout(() => { if (btn.isConnected) { btn.classList.remove('armed'); btn.textContent = '✕'; } }, 4000);
+      return;
+    }
+    await Media.remove(btn.dataset.del);
+    loadMediaSettings();
+  });
+
   // ---------- Token screen ----------
 
   function showToken(t) {
@@ -126,8 +245,9 @@
     $('tCode').textContent = t.token;
     $('tName').textContent = t.name;
     $('tPhone').textContent = t.phone.replace(/(\d{5})(\d{5})/, '$1 $2');
-    const text = `*${state.settings.shopName}*\nHi ${t.name}, thank you for following us!\n\nToken: *#${t.serial}* (${t.token})\nPrize: *${t.offer}*\nDay ${t.day} · ${C.niceDate(t.date)}`;
-    $('tSend').href = `https://wa.me/91${t.phone}?text=${encodeURIComponent(text)}`;
+    shareText = `*${state.settings.shopName}*\nHi ${t.name}, thank you for following us!\n\nToken: *#${t.serial}* (${t.token})\nPrize: *${t.offer}*\nDay ${t.day} · ${C.niceDate(t.date)}`;
+    $('tSend').href = `https://wa.me/91${t.phone}?text=${encodeURIComponent(shareText)}`;
+    renderMediaButton();
     renderGiven();
     show('screenToken');
   }
@@ -356,6 +476,7 @@
     $('newPin').value = '';
     $('setMsg').textContent = '';
     updateRangeNote();
+    loadMediaSettings();
   }
 
   function updateRangeNote() {
@@ -396,6 +517,7 @@
   }, 30000);
 
   renderCustomer();
+  refreshMedia();
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
