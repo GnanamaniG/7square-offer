@@ -2,7 +2,7 @@
 (function () {
   // The page and this script must come from the same release. If the phone mixed an old saved
   // page with new code (or the reverse), reload once to fetch a matching set.
-  const BUILD = '8';
+  const BUILD = '9';
   const pageBuild = (document.querySelector('meta[name="app-build"]') || {}).content;
   if (pageBuild !== BUILD) {
     let reloaded = false;
@@ -47,7 +47,7 @@
 
   // ---------- Header & customer screen ----------
 
-  let follow = { wa: false, ig: false, hi: false };
+  let follow = { wa: false, ig: false };
   let current = null; // token being shown on the token screen
 
   function renderHeader() {
@@ -88,29 +88,14 @@
     $('qrIg').classList.toggle('empty', !ig);
     $('igName').textContent = ig ? '@' + state.settings.instagramId : 'Instagram';
     $('tIg').disabled = !ig;
-    $('tileHi').classList.toggle('hidden', !needHi());
-    renderHiQr();
     renderFollow();
-  }
-
-  // With photos/videos to attach, the customer must message the shop first: WhatsApp's share
-  // screen only lists existing chats, so this puts the customer's chat at the top of that list.
-  const needHi = () => Boolean(state.settings.whatsappNumber && sendsMedia());
-
-  function renderHiQr() {
-    if (!needHi()) return;
-    const name = $('cName').value.trim();
-    const text = `Hi ${state.settings.shopName} 👋${name ? ` I'm ${name}.` : ''} Please send my offer token.`;
-    $('qrHi').innerHTML = qrSvg(`https://wa.me/${state.settings.whatsappNumber}?text=${encodeURIComponent(text)}`);
   }
 
   function renderFollow() {
     $('tileWa').classList.toggle('done', follow.wa);
     $('tileIg').classList.toggle('done', follow.ig);
-    $('tileHi').classList.toggle('done', follow.hi);
     $('tWa').textContent = follow.wa ? 'Followed ✓' : 'Followed?';
     $('tIg').textContent = follow.ig ? 'Followed ✓' : 'Followed?';
-    $('tHi').textContent = follow.hi ? 'Hi received ✓' : 'Hi received?';
     checkForm();
   }
 
@@ -120,22 +105,20 @@
     $('dupWarn').classList.toggle('hidden', !dup);
     if (dup) $('dupWarn').textContent = '⚠ ' + C.alreadyMessage(state, dup);
     const needIg = Boolean(state.settings.instagramId);
-    $('giveBtn').disabled = !($('cName').value.trim() && phone && !dup && follow.wa
-      && (follow.ig || !needIg) && (follow.hi || !needHi()));
+    $('giveBtn').disabled = !($('cName').value.trim() && phone && !dup && follow.wa && (follow.ig || !needIg));
   }
 
   function resetForm() {
     $('cName').value = $('cPhone').value = '';
     $('formErr').textContent = '';
-    follow = { wa: false, ig: false, hi: false };
+    follow = { wa: false, ig: false };
     renderCustomer();
   }
 
-  $('cName').addEventListener('input', () => { renderHiQr(); checkForm(); });
+  $('cName').addEventListener('input', checkForm);
   $('cPhone').addEventListener('input', checkForm);
   $('tWa').addEventListener('click', () => { follow.wa = !follow.wa; renderFollow(); });
   $('tIg').addEventListener('click', () => { follow.ig = !follow.ig; renderFollow(); });
-  $('tHi').addEventListener('click', () => { follow.hi = !follow.hi; renderFollow(); });
 
   $('giveBtn').addEventListener('click', () => {
     const res = C.issue(state, { name: $('cName').value, phone: $('cPhone').value });
@@ -280,25 +263,48 @@
     $('tName').textContent = t.name;
     $('tPhone').textContent = t.phone.replace(/(\d{5})(\d{5})/, '$1 $2');
     $('tSend').href = `https://wa.me/91${t.phone}?text=${encodeURIComponent(tokenMessage(t))}`;
-    const n = mediaFiles.length, photos = mediaFiles.filter(f => f.type.startsWith('image/')).length;
-    const what = [photos && `${photos} photo${photos > 1 ? 's' : ''}`, n - photos && `${n - photos} video${n - photos > 1 ? 's' : ''}`].filter(Boolean).join(' & ');
-    $('sendNote').textContent = sendsMedia()
-      ? `Sends the token message with ${what}. In WhatsApp, tap ${t.name}'s chat (at the top, from their "Hi"), then Send.`
-      : '';
+    setSendStep('message');
     renderGiven();
     show('screenToken');
   }
 
-  // One button: with photos/videos it opens WhatsApp's share screen with everything attached;
-  // without them the link opens the customer's own chat directly.
+  // One Send button, used in up to two steps:
+  //  'message' — opens the customer's own chat by number with the token message (works for unsaved numbers)
+  //  'media'   — the same button then attaches the photos/videos through WhatsApp's share screen;
+  //              the customer's chat is at the top of that list because the message was just sent
+  let sendStep = 'message';
+
+  function mediaLabel() {
+    const n = mediaFiles.length, photos = mediaFiles.filter(f => f.type.startsWith('image/')).length;
+    return [photos && `${photos} photo${photos > 1 ? 's' : ''}`, n - photos && `${n - photos} video${n - photos > 1 ? 's' : ''}`].filter(Boolean).join(' & ');
+  }
+
+  function setSendStep(step) {
+    sendStep = step;
+    const btn = $('tSend'), note = $('sendNote'), name = current.name;
+    btn.classList.toggle('wa-next', step === 'media');
+    if (step === 'message') {
+      btn.textContent = 'Send on WhatsApp';
+      note.textContent = sendsMedia() ? `Opens ${name}'s chat with the token. Send it, come back, and tap this button again for the ${mediaLabel()}.` : '';
+    } else if (step === 'media') {
+      btn.textContent = `Send ${mediaLabel()} to ${name}`;
+      note.textContent = `In WhatsApp, tap ${name}'s chat at the top of the list, then Send.`;
+    } else {
+      btn.textContent = 'Sent ✓ — tap to send again';
+      note.textContent = '';
+    }
+  }
+
   $('tSend').addEventListener('click', e => {
-    if (!sendsMedia()) return;
-    e.preventDefault();
-    navigator.share({ files: mediaFiles, text: tokenMessage(current) }).catch(err => {
-      if (err.name === 'AbortError') return;
-      $('sendNote').textContent = 'Could not attach the photos, so sending the message only.';
-      location.href = $('tSend').href;
-    });
+    if (sendStep === 'media') {
+      e.preventDefault();
+      navigator.share({ files: mediaFiles, text: `*${state.settings.shopName}* — today's offers for you, ${current.name} 🎁` })
+        .then(() => setSendStep('done'))
+        .catch(err => { if (err.name !== 'AbortError') $('sendNote').textContent = 'Could not attach the photos: ' + err.message; });
+      return;
+    }
+    // 'message' or 'done': let the link open the customer's chat, then offer the photos next
+    setTimeout(() => setSendStep(sendsMedia() ? 'media' : 'done'), 300);
   });
 
   function renderGiven() {
