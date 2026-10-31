@@ -1,5 +1,15 @@
 // Screens and buttons for the single-phone offer app. Rules and storage live in core.js.
 (function () {
+  // The page and this script must come from the same release. If the phone mixed an old saved
+  // page with new code (or the reverse), reload once to fetch a matching set.
+  const BUILD = '6';
+  const pageBuild = (document.querySelector('meta[name="app-build"]') || {}).content;
+  if (pageBuild !== BUILD) {
+    let reloaded = false;
+    try { reloaded = sessionStorage.getItem('sq7-reloaded') === BUILD; sessionStorage.setItem('sq7-reloaded', BUILD); } catch (e) { /* ignore */ }
+    if (!reloaded) { location.reload(); return; }
+  }
+
   const C = window.Core;
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
