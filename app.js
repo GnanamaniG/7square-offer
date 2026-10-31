@@ -71,7 +71,7 @@
 
     // QR codes
     const ch = state.settings.channelUrl;
-    $('qrWa').innerHTML = ch ? qrSvg(ch) : 'Add the channel link in Settings';
+    $('qrWa').innerHTML = ch ? qrSvg(ch) : 'Add the WhatsApp link in Settings';
     $('qrWa').classList.toggle('empty', !ch);
     const ig = igUrl();
     $('qrIg').innerHTML = ig ? qrSvg(ig) : 'Add your Instagram ID in Settings';
@@ -148,7 +148,7 @@
   // Ready-made File objects, so tapping "Send photos & videos" can share instantly
   // (the share sheet only opens straight from a tap, with no slow work in between)
   let mediaFiles = [];
-  let shareText = '';
+  let shareCaption = '';
 
   async function refreshMedia() {
     try {
@@ -166,16 +166,17 @@
   function renderMediaButton() {
     const n = mediaFiles.length;
     const photos = mediaFiles.filter(f => f.type.startsWith('image/')).length;
+    $('tSend').textContent = n ? '1. Send token & links' : 'Send token & links on WhatsApp';
     $('tMedia').textContent = `2. Send ${[photos && `${photos} photo${photos > 1 ? 's' : ''}`, n - photos && `${n - photos} video${n - photos > 1 ? 's' : ''}`].filter(Boolean).join(' & ')}`;
     $('tMedia').classList.toggle('hidden', !n);
     $('tMedia').disabled = !canShareFiles(mediaFiles);
     $('mediaNote').textContent = !n ? ''
       : $('tMedia').disabled ? 'This phone cannot send files from the app. Send the photos from the Gallery instead.'
-        : 'After step 1, come back and tap step 2. In WhatsApp, pick this customer — their chat is at the top of the list.';
+        : 'After step 1, come back and tap step 2. In WhatsApp, tap this customer — their chat is at the top of the list.';
   }
 
   $('tMedia').addEventListener('click', () => {
-    navigator.share({ files: mediaFiles, text: shareText }).catch(e => {
+    navigator.share({ files: mediaFiles, text: shareCaption }).catch(e => {
       if (e.name !== 'AbortError') $('mediaNote').textContent = 'Could not open WhatsApp: ' + e.message;
     });
   });
@@ -238,6 +239,26 @@
 
   // ---------- Token screen ----------
 
+  // One WhatsApp message with the token and every shop link that's been set
+  function tokenMessage(t) {
+    const s = state.settings;
+    const lines = [
+      `*${s.shopName}*`,
+      `Hi ${t.name}, thank you for following us! 🙏`,
+      '',
+      `🎟️ Token: *#${t.serial}* (${t.token})`,
+      `🎁 Prize: *${t.offer}*`,
+      `📅 Day ${t.day} · ${C.niceDate(t.date)}`,
+    ];
+    const links = [
+      s.instagramId && `📸 Instagram: ${igUrl()}`,
+      s.channelUrl && `💬 Join us on WhatsApp: ${s.channelUrl}`,
+      s.whatsappNumber && `📞 Call / WhatsApp: +${s.whatsappNumber}`,
+    ].filter(Boolean);
+    if (links.length) lines.push('', ...links);
+    return lines.join('\n');
+  }
+
   function showToken(t) {
     current = t;
     $('tDay').textContent = `Day ${t.day} · ${C.niceDate(t.date)} · Token number`;
@@ -246,8 +267,8 @@
     $('tCode').textContent = t.token;
     $('tName').textContent = t.name;
     $('tPhone').textContent = t.phone.replace(/(\d{5})(\d{5})/, '$1 $2');
-    shareText = `*${state.settings.shopName}*\nHi ${t.name}, thank you for following us!\n\nToken: *#${t.serial}* (${t.token})\nPrize: *${t.offer}*\nDay ${t.day} · ${C.niceDate(t.date)}`;
-    $('tSend').href = `https://wa.me/91${t.phone}?text=${encodeURIComponent(shareText)}`;
+    $('tSend').href = `https://wa.me/91${t.phone}?text=${encodeURIComponent(tokenMessage(t))}`;
+    shareCaption = `*${state.settings.shopName}* — today's offers for you, ${t.name} 🎁`;
     renderMediaButton();
     renderGiven();
     show('screenToken');
