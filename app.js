@@ -2,7 +2,7 @@
 (function () {
   // The page and this script must come from the same release. If the phone mixed an old saved
   // page with new code (or the reverse), reload once to fetch a matching set.
-  const BUILD = '7';
+  const BUILD = '8';
   const pageBuild = (document.querySelector('meta[name="app-build"]') || {}).content;
   if (pageBuild !== BUILD) {
     let reloaded = false;
@@ -47,7 +47,7 @@
 
   // ---------- Header & customer screen ----------
 
-  let follow = { wa: false, ig: false };
+  let follow = { wa: false, ig: false, hi: false };
   let current = null; // token being shown on the token screen
 
   function renderHeader() {
@@ -88,14 +88,29 @@
     $('qrIg').classList.toggle('empty', !ig);
     $('igName').textContent = ig ? '@' + state.settings.instagramId : 'Instagram';
     $('tIg').disabled = !ig;
+    $('tileHi').classList.toggle('hidden', !needHi());
+    renderHiQr();
     renderFollow();
+  }
+
+  // With photos/videos to attach, the customer must message the shop first: WhatsApp's share
+  // screen only lists existing chats, so this puts the customer's chat at the top of that list.
+  const needHi = () => Boolean(state.settings.whatsappNumber && sendsMedia());
+
+  function renderHiQr() {
+    if (!needHi()) return;
+    const name = $('cName').value.trim();
+    const text = `Hi ${state.settings.shopName} 👋${name ? ` I'm ${name}.` : ''} Please send my offer token.`;
+    $('qrHi').innerHTML = qrSvg(`https://wa.me/${state.settings.whatsappNumber}?text=${encodeURIComponent(text)}`);
   }
 
   function renderFollow() {
     $('tileWa').classList.toggle('done', follow.wa);
     $('tileIg').classList.toggle('done', follow.ig);
+    $('tileHi').classList.toggle('done', follow.hi);
     $('tWa').textContent = follow.wa ? 'Followed ✓' : 'Followed?';
     $('tIg').textContent = follow.ig ? 'Followed ✓' : 'Followed?';
+    $('tHi').textContent = follow.hi ? 'Hi received ✓' : 'Hi received?';
     checkForm();
   }
 
@@ -105,26 +120,131 @@
     $('dupWarn').classList.toggle('hidden', !dup);
     if (dup) $('dupWarn').textContent = '⚠ ' + C.alreadyMessage(state, dup);
     const needIg = Boolean(state.settings.instagramId);
-    $('giveBtn').disabled = !($('cName').value.trim() && phone && !dup && follow.wa && (follow.ig || !needIg));
+    $('giveBtn').disabled = !($('cName').value.trim() && phone && !dup && follow.wa
+      && (follow.ig || !needIg) && (follow.hi || !needHi()));
   }
 
   function resetForm() {
     $('cName').value = $('cPhone').value = '';
     $('formErr').textContent = '';
-    follow = { wa: false, ig: false };
+    follow = { wa: false, ig: false, hi: false };
     renderCustomer();
   }
 
-  $('cName').addEventListener('input', checkForm);
+  $('cName').addEventListener('input', () => { renderHiQr(); checkForm(); });
   $('cPhone').addEventListener('input', checkForm);
   $('tWa').addEventListener('click', () => { follow.wa = !follow.wa; renderFollow(); });
   $('tIg').addEventListener('click', () => { follow.ig = !follow.ig; renderFollow(); });
+  $('tHi').addEventListener('click', () => { follow.hi = !follow.hi; renderFollow(); });
 
   $('giveBtn').addEventListener('click', () => {
     const res = C.issue(state, { name: $('cName').value, phone: $('cPhone').value });
     if (res.error) { $('formErr').textContent = res.error; return; }
     if (!persist()) { C.cancel(state, res.entry.token); return; }
     showToken(res.entry);
+  });
+
+  // ---------- Photos & videos (kept in IndexedDB; too large for localStorage) ----------
+
+  const Media = (() => {
+    let opening, seq = 0;
+    const db = () => opening || (opening = new Promise((resolve, reject) => {
+      const req = indexedDB.open('sq7-media', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('files', { keyPath: 'id' });
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }));
+    async function run(mode, fn) {
+      const d = await db();
+      return new Promise((resolve, reject) => {
+        const t = d.transaction('files', mode);
+        const req = fn(t.objectStore('files'));
+        t.oncomplete = () => resolve(req.result);
+        t.onerror = t.onabort = () => reject(t.error || new Error('Phone storage is full'));
+      });
+    }
+    return {
+      list: () => run('readonly', s => s.getAll()).then(all => all.sort((a, b) => a.addedAt - b.addedAt)),
+      add: file => run('readwrite', s => s.put({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: file.name, type: file.type, size: file.size, blob: file, addedAt: Date.now() * 1000 + (seq++ % 1000), // keeps the order they were picked
+      })),
+      remove: id => run('readwrite', s => s.delete(id)),
+    };
+  })();
+
+  // Ready-made File objects, so tapping Send can open the share screen instantly
+  // (it only opens straight from a tap, with no slow work in between)
+  let mediaFiles = [];
+
+  async function refreshMedia() {
+    try {
+      const items = await Media.list();
+      mediaFiles = items.map(m => new File([m.blob], m.name, { type: m.type }));
+      return items;
+    } catch (e) {
+      mediaFiles = [];
+      return [];
+    }
+  }
+
+  const sendsMedia = () => Boolean(mediaFiles.length && navigator.canShare && navigator.canShare({ files: mediaFiles }));
+
+  function renderMediaList(items) {
+    const list = $('mediaList');
+    list.querySelectorAll('img, video').forEach(el => URL.revokeObjectURL(el.src));
+    list.innerHTML = '';
+    for (const m of items) {
+      const box = document.createElement('div');
+      box.className = 'thumb';
+      const view = document.createElement(m.type.startsWith('video/') ? 'video' : 'img');
+      view.src = URL.createObjectURL(m.blob);
+      if (view.tagName === 'VIDEO') { view.muted = true; view.preload = 'metadata'; }
+      const mb = m.size / 1048576;
+      const tooBig = m.type.startsWith('video/') && mb > 16;
+      box.append(view);
+      box.insertAdjacentHTML('beforeend', `<span class="tag${tooBig ? ' big' : ''}">${m.type.startsWith('video/') ? '▶ ' : ''}${mb.toFixed(1)} MB</span>
+        <button class="del" data-del="${m.id}" aria-label="Remove">✕</button>`);
+      list.append(box);
+    }
+    const total = items.reduce((n, m) => n + m.size, 0) / 1048576;
+    const msg = $('mediaMsg');
+    msg.className = 'msg';
+    msg.textContent = !items.length ? 'No photos or videos yet.'
+      : `${items.length} file${items.length > 1 ? 's' : ''} · ${total.toFixed(1)} MB${total > 64 ? ' — large; WhatsApp may take time to send' : ''}`
+        + (sendsMedia() ? '' : ' · This phone cannot attach files from the app, so only the message will be sent.');
+  }
+
+  async function loadMediaSettings() {
+    renderMediaList(await refreshMedia());
+  }
+
+  $('addMediaBtn').addEventListener('click', () => $('mediaFile').click());
+  $('mediaFile').addEventListener('change', async () => {
+    const files = [...$('mediaFile').files];
+    $('mediaFile').value = '';
+    const rejected = [];
+    for (const f of files) {
+      if (!/^(image|video)\//.test(f.type) || (navigator.canShare && !navigator.canShare({ files: [f] }))) { rejected.push(f.name); continue; }
+      try { await Media.add(f); } catch (e) { rejected.push(`${f.name} (${e.message})`); }
+    }
+    await loadMediaSettings();
+    if (rejected.length) {
+      $('mediaMsg').className = 'msg err';
+      $('mediaMsg').textContent = `Not added: ${rejected.join(', ')}. Use JPG/PNG photos and MP4 videos.`;
+    }
+  });
+
+  $('mediaList').addEventListener('click', async e => {
+    const btn = e.target.closest('[data-del]');
+    if (!btn) return;
+    if (!btn.classList.contains('armed')) {
+      btn.classList.add('armed');
+      btn.textContent = 'Remove?';
+      setTimeout(() => { if (btn.isConnected) { btn.classList.remove('armed'); btn.textContent = '✕'; } }, 4000);
+      return;
+    }
+    await Media.remove(btn.dataset.del);
+    loadMediaSettings();
   });
 
   // ---------- Token screen ----------
@@ -160,9 +280,26 @@
     $('tName').textContent = t.name;
     $('tPhone').textContent = t.phone.replace(/(\d{5})(\d{5})/, '$1 $2');
     $('tSend').href = `https://wa.me/91${t.phone}?text=${encodeURIComponent(tokenMessage(t))}`;
+    const n = mediaFiles.length, photos = mediaFiles.filter(f => f.type.startsWith('image/')).length;
+    const what = [photos && `${photos} photo${photos > 1 ? 's' : ''}`, n - photos && `${n - photos} video${n - photos > 1 ? 's' : ''}`].filter(Boolean).join(' & ');
+    $('sendNote').textContent = sendsMedia()
+      ? `Sends the token message with ${what}. In WhatsApp, tap ${t.name}'s chat (at the top, from their "Hi"), then Send.`
+      : '';
     renderGiven();
     show('screenToken');
   }
+
+  // One button: with photos/videos it opens WhatsApp's share screen with everything attached;
+  // without them the link opens the customer's own chat directly.
+  $('tSend').addEventListener('click', e => {
+    if (!sendsMedia()) return;
+    e.preventDefault();
+    navigator.share({ files: mediaFiles, text: tokenMessage(current) }).catch(err => {
+      if (err.name === 'AbortError') return;
+      $('sendNote').textContent = 'Could not attach the photos, so sending the message only.';
+      location.href = $('tSend').href;
+    });
+  });
 
   function renderGiven() {
     $('tGiven').disabled = Boolean(current.givenAt);
@@ -405,6 +542,7 @@
     $('newPin').value = '';
     $('setMsg').textContent = '';
     updateRangeNote();
+    loadMediaSettings();
   }
 
   function updateRangeNote() {
@@ -447,8 +585,7 @@
 
   renderCustomer();
 
-  // An earlier version kept photos/videos on the phone; free that space
-  try { indexedDB.deleteDatabase('sq7-media'); } catch (e) { /* not available */ }
+  refreshMedia().then(() => { if (!$('screenCustomer').classList.contains('hidden')) renderCustomer(); });
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
