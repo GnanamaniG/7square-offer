@@ -17,6 +17,7 @@
         channelUrl: '',
         instagramId: '',
         whatsappNumber: '',
+        offerLink: '',  // web page with the offer photos/videos; WhatsApp shows it as a preview
         offerTitle: '10% OFF',
         prizeRules: '1 = EarBuds\n2-8 = Neck Band\n9-85 = Earphone or Tempered Glass',
         startDate: todayStr(),
