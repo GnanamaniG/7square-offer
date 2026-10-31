@@ -74,9 +74,10 @@
     $('qrWa').innerHTML = ch ? qrSvg(ch) : 'Add the channel link in Settings';
     $('qrWa').classList.toggle('empty', !ch);
     const ig = igUrl();
-    $('tileIg').classList.toggle('hidden', !state.settings.instagramId);
-    $('qrIg').innerHTML = ig ? qrSvg(ig) : '';
-    $('igName').textContent = state.settings.instagramId ? '@' + state.settings.instagramId : 'Instagram';
+    $('qrIg').innerHTML = ig ? qrSvg(ig) : 'Add your Instagram ID in Settings';
+    $('qrIg').classList.toggle('empty', !ig);
+    $('igName').textContent = ig ? '@' + state.settings.instagramId : 'Instagram';
+    $('tIg').disabled = !ig;
     renderFollow();
   }
 
