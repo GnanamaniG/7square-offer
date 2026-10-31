@@ -2,7 +2,7 @@
 (function () {
   // The page and this script must come from the same release. If the phone mixed an old saved
   // page with new code (or the reverse), reload once to fetch a matching set.
-  const BUILD = '6';
+  const BUILD = '7';
   const pageBuild = (document.querySelector('meta[name="app-build"]') || {}).content;
   if (pageBuild !== BUILD) {
     let reloaded = false;
@@ -238,6 +238,23 @@
   }
   $('incBtn').addEventListener('click', () => { C.moveCounter(state, 1); persist(); renderToday(); });
   $('decBtn').addEventListener('click', () => { C.moveCounter(state, -1); persist(); renderToday(); });
+
+  $('buildNote').textContent = `App version ${BUILD}`;
+  $('repairBtn').addEventListener('click', () => {
+    const btn = $('repairBtn');
+    // Without internet the files can't be fetched again, so don't throw the saved copy away
+    if (!navigator.onLine) { $('buildNote').textContent = 'Turn on internet first, then tap Refresh app.'; return; }
+    if (!btn.dataset.armed) {
+      btn.dataset.armed = '1';
+      btn.textContent = 'Tap again to refresh (customers are kept)';
+      setTimeout(() => { delete btn.dataset.armed; btn.textContent = 'Refresh app (keeps all customers)'; }, 5000);
+      return;
+    }
+    persist();
+    btn.disabled = true;
+    btn.textContent = 'Refreshing…';
+    window.sq7Repair();
+  });
 
   // ---------- Admin: Customers ----------
 
