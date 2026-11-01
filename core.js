@@ -230,7 +230,7 @@
     return out;
   }
 
-  const xmlEscape = v => String(v ?? '').replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]))
+  const xmlEscape = v => String(v == null ? '' : v).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]))
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
 
   function colName(i) {

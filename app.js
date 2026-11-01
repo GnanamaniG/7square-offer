@@ -2,7 +2,7 @@
 (function () {
   // The page and this script must come from the same release. If the phone mixed an old saved
   // page with new code (or the reverse), reload once to fetch a matching set.
-  const BUILD = '9';
+  const BUILD = '10';
   const pageBuild = (document.querySelector('meta[name="app-build"]') || {}).content;
   if (pageBuild !== BUILD) {
     let reloaded = false;
@@ -12,7 +12,7 @@
 
   const C = window.Core;
   const $ = id => document.getElementById(id);
-  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   let store;
   try { store = window.localStorage; store.getItem('x'); } catch (e) { store = null; }
@@ -331,7 +331,7 @@
   $('lockBtn').addEventListener('click', () => {
     if (!$('screenAdmin').classList.contains('hidden')) { lockAdmin(); return; }
     $('pinIn').value = '';
-    $('pinMsg').textContent = state.settings.pin === '1234' ? 'Default PIN is 1234 — change it in Settings.' : '';
+    $('pinMsg').textContent = state.settings.pin === '1234' ? 'PIN is 1234 — change it in Settings.' : 'Each phone has its own PIN (1234 on a new phone).';
     $('pinModal').classList.remove('hidden');
     setTimeout(() => $('pinIn').focus(), 50);
   });
@@ -592,6 +592,9 @@
   renderCustomer();
 
   refreshMedia().then(() => { if (!$('screenCustomer').classList.contains('hidden')) renderCustomer(); });
+
+  // Tells the page the app started; otherwise it shows a "could not start" message
+  window.sq7Ready = true;
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});

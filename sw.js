@@ -1,6 +1,6 @@
 // Keeps the app working with no internet.
 // When the app files change, bump VERSION here and BUILD in app.js / index.html together.
-const VERSION = 'sq7-offer-v9';
+const VERSION = 'sq7-offer-v10';
 const FILES = ['./', 'index.html', 'app.js', 'core.js', 'vendor/qrcode.min.js', 'logo.jpg', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest'];
 const NETWORK_WAIT_MS = 4000;
 

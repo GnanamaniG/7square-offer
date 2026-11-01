@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#3b4550">
-<meta name="app-build" content="9">
+<meta name="app-build" content="10">
 <title>7 Square Offer</title>
 <script>
   // Refresh the app's saved files. Customers, tokens and settings live in localStorage and are not touched.
@@ -326,7 +326,20 @@
 </div>
 
 <script src="vendor/qrcode.min.js"></script>
-<script src="core.js?v=9"></script>
-<script src="app.js?v=9"></script>
+<script src="core.js?v=10"></script>
+<script src="app.js?v=10"></script>
+<script>
+  // If app.js could not start (very old browser, or a broken download), say so instead of leaving dead buttons
+  window.addEventListener('load', function () {
+    if (window.sq7Ready) return;
+    var box = document.createElement('div');
+    box.className = 'card';
+    box.style.cssText = 'margin:14px;border:2px solid #e30613';
+    box.innerHTML = '<h2>The app could not start on this phone</h2>' +
+      '<p class="note" style="margin:0 0 12px">Update <b>Google Chrome</b> from the Play Store and open the app in Chrome. Your customers are safe on this phone.</p>' +
+      '<a class="btn red" href="?repair">Refresh app</a>';
+    document.body.insertBefore(box, document.body.firstChild.nextSibling);
+  });
+</script>
 </body>
 </html>
